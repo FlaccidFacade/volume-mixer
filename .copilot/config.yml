@@ -1,0 +1,62 @@
+# GitHub Copilot configuration for Rooted Per-App Volume Mixer Project
+
+# General project context
+project:
+  name: Rooted Per-App Volume Mixer
+  description: >
+    Android app to allow true simultaneous per-app audio volume control.
+    Kotlin + Jetpack Compose for UI, ForegroundService for session tracking,
+    C++ via JNI/NDK for AudioFlinger hooks. Requires root (Magisk).
+
+# Coding style & conventions
+coding:
+  language: kotlin
+  kotlin:
+    target_version: "1.9"
+    compose: true
+    coroutine_usage: true
+    prefer_stateflow: true
+    max_file_lines: 200   # Soft guidance: keep Kotlin files ≤200 lines
+  native_language: cpp
+  native:
+    use_jni: true
+    ndk_version: "25"
+    max_file_lines: 150   # Soft guidance: keep C++ files ≤150 lines
+  test_frameworks:
+    kotlin: junit5
+    cpp: googletest
+
+# File and folder rules
+ignore_paths:
+  - "build/"
+  - ".gradle/"
+  - "out/"
+  - "node_modules/"
+
+# Suggestion limits
+max_line_suggestions: 30
+max_block_suggestions: 100
+
+# Context hints
+hints:
+  - "Focus on incremental tasks."
+  - "Use ForegroundService to track audio sessions."
+  - "Use Room DB for persistent volume multipliers."
+  - "Use JNI/NDK layer for AudioFlinger per-session volume control."
+  - "Follow MVVM-like separation: UI (Compose), Service (Kotlin), Native Hooks (C++)."
+  - "Always include unit or integration test stubs when generating new functions."
+  - "Provide logging for root/native interactions."
+  - "Comment where root privileges are required."
+  - "Keep functions small, modular, and testable."
+  - "Keep Kotlin files under 200 lines, C++ files under 150 lines."
+  - "Use descriptive logging to verify each step of incremental features."
+  - "Include stubs or mocks for native/root calls in testing."
+  - "Each incremental feature should have at least one unit test and one integration test."
+
+# Testing rules
+testing:
+  unit_test_required: true
+  integration_test_required: true
+  log_key_actions: true
+  mock_native_calls: true
+  incremental_validation: true   # Ensure each feature can be tested independently
