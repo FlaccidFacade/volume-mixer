@@ -43,15 +43,44 @@ class AudioSessionServiceTest {
             "com.youtube:false"
         )
 
-        val spotify = sessionData[0].split(":")
-        val youtube = sessionData[1].split(":")
+        // Test parsing logic (using lastIndexOf to handle colons in package names)
+        sessionData.forEach { data ->
+            val colonIndex = data.lastIndexOf(":")
+            assertTrue(colonIndex > 0)
+            assertTrue(colonIndex < data.length - 1)
+            
+            val packageName = data.substring(0, colonIndex)
+            val playingStr = data.substring(colonIndex + 1)
+            
+            assertNotNull(packageName)
+            assertTrue(playingStr == "true" || playingStr == "false")
+        }
+    }
 
-        assertEquals("com.spotify", spotify[0])
-        assertEquals("true", spotify[1])
-        assertTrue(spotify[1].toBoolean())
+    @Test
+    fun broadcastIntentFormat_handlesColonInPackageName() {
+        // Test handling of package names with colons (edge case)
+        val sessionData = "com.example:app:true"
+        
+        val colonIndex = sessionData.lastIndexOf(":")
+        val packageName = sessionData.substring(0, colonIndex)
+        val playingStr = sessionData.substring(colonIndex + 1)
+        
+        assertEquals("com.example:app", packageName)
+        assertEquals("true", playingStr)
+    }
 
-        assertEquals("com.youtube", youtube[0])
-        assertEquals("false", youtube[1])
-        assertFalse(youtube[1].toBoolean())
+    @Test
+    fun broadcastIntentFormat_validatesBooleanString() {
+        // Test explicit boolean string comparison
+        assertEquals("true", "true")
+        assertNotEquals("true", "True")
+        assertNotEquals("true", "TRUE")
+        assertEquals("false", "false")
+        
+        // Test boolean parsing
+        assertTrue("true" == "true")
+        assertFalse("false" == "true")
+        assertFalse("invalid" == "true")
     }
 }

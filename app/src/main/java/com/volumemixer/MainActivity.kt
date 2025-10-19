@@ -42,12 +42,19 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioSessionService.ACTION_SESSION_CHANGED) {
                 val sessionData = intent.getStringArrayExtra(AudioSessionService.EXTRA_SESSION_DATA)
-                activeSessions.value = sessionData?.map { data ->
-                    val parts = data.split(":")
-                    SessionDisplay(
-                        packageName = parts[0],
-                        isPlaying = parts.getOrNull(1)?.toBoolean() ?: false
-                    )
+                activeSessions.value = sessionData?.mapNotNull { data ->
+                    // Use lastIndexOf to handle package names with colons
+                    val colonIndex = data.lastIndexOf(":")
+                    if (colonIndex > 0 && colonIndex < data.length - 1) {
+                        val packageName = data.substring(0, colonIndex)
+                        val playingStr = data.substring(colonIndex + 1)
+                        SessionDisplay(
+                            packageName = packageName,
+                            isPlaying = playingStr == "true"
+                        )
+                    } else {
+                        null // Skip malformed entries
+                    }
                 } ?: emptyList()
             }
         }
@@ -104,15 +111,19 @@ class MainActivity : ComponentActivity() {
         startService(intent)
     }
     
-    data class SessionDisplay(
-        val packageName: String,
-        val isPlaying: Boolean
-    )
 }
+
+/**
+ * Data class representing a media session for display in the UI.
+ */
+data class SessionDisplay(
+    val packageName: String,
+    val isPlaying: Boolean
+)
 
 @Composable
 fun VolumeMixerScreen(
-    activeSessions: List<MainActivity.SessionDisplay> = emptyList(),
+    activeSessions: List<SessionDisplay> = emptyList(),
     onStartService: () -> Unit,
     onStopService: () -> Unit
 ) {
@@ -123,23 +134,19 @@ fun VolumeMixerScreen(
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
         Text(
             text = "Volume Mixer",
             style = MaterialTheme.typography.headlineMedium
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
-        
         Text(
             text = if (isServiceRunning) "Service is running" else "Service is stopped",
             style = MaterialTheme.typography.bodyLarge
         )
-        
-        Spacer(modifier = Modifier.height(16.dp))
         
         Button(
             onClick = {
@@ -155,15 +162,11 @@ fun VolumeMixerScreen(
             Text(text = if (isServiceRunning) "Stop Service" else "Start Service")
         }
         
-        Spacer(modifier = Modifier.height(32.dp))
-        
         // Active Sessions Section
         Text(
             text = "Active Media Sessions",
             style = MaterialTheme.typography.titleLarge
         )
-        
-        Spacer(modifier = Modifier.height(16.dp))
         
         if (activeSessions.isEmpty()) {
             Text(
@@ -172,10 +175,11 @@ fun VolumeMixerScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            Column {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 activeSessions.forEach { session ->
                     SessionCard(session)
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -183,7 +187,7 @@ fun VolumeMixerScreen(
 }
 
 @Composable
-fun SessionCard(session: MainActivity.SessionDisplay) {
+fun SessionCard(session: SessionDisplay) {
     Card(
         modifier = Modifier.padding(horizontal = 8.dp),
         colors = CardDefaults.cardColors(
@@ -217,8 +221,8 @@ fun VolumeMixerScreenPreview() {
     VolumeMixerTheme {
         VolumeMixerScreen(
             activeSessions = listOf(
-                MainActivity.SessionDisplay("com.spotify.music", true),
-                MainActivity.SessionDisplay("com.google.android.youtube", false)
+                SessionDisplay("com.spotify.music", true),
+                SessionDisplay("com.google.android.youtube", false)
             ),
             onStartService = {},
             onStopService = {}
