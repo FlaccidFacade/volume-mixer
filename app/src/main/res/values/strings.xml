@@ -5,4 +5,5 @@
     <string name="notification_text">Audio session tracking is active</string>
     <string name="service_start">Start Service</string>
     <string name="service_stop">Stop Service</string>
+    <string name="notification_listener_service_name">Volume Mixer Media Session Tracker</string>
 
