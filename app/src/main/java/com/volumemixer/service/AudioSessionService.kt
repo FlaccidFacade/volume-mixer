@@ -24,7 +24,11 @@ class AudioSessionService : Service() {
         
         const val ACTION_START = "com.volumemixer.action.START"
         const val ACTION_STOP = "com.volumemixer.action.STOP"
+        const val ACTION_SESSION_CHANGED = "com.volumemixer.action.SESSION_CHANGED"
+        const val EXTRA_SESSION_DATA = "com.volumemixer.extra.SESSION_DATA"
     }
+
+    private var mediaSessionTracker: MediaSessionTracker? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -35,10 +39,13 @@ class AudioSessionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                Log.d(TAG, "Service running")
+                Log.d(TAG, "Service starting")
                 startForeground(NOTIFICATION_ID, createNotification())
+                trackAudioSessions()
             }
             ACTION_STOP -> {
+                Log.d(TAG, "Service stopping")
+                stopTrackingSessions()
                 stopSelf()
             }
         }
@@ -51,7 +58,8 @@ class AudioSessionService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Service stopped")
+        stopTrackingSessions()
+        Log.d(TAG, "Service destroyed")
     }
 
     private fun createNotificationChannel() {
@@ -88,20 +96,86 @@ class AudioSessionService : Service() {
     }
 
     /**
-     * Stub function for tracking audio sessions.
-     * This will be implemented in future iterations.
+     * Start tracking audio sessions using MediaSessionManager.
      */
     private fun trackAudioSessions() {
-        // TODO: Implement audio session tracking
-        Log.d(TAG, "Audio session tracking - stub")
+        if (mediaSessionTracker == null) {
+            mediaSessionTracker = MediaSessionTracker(this).apply {
+                startTracking(object : MediaSessionTracker.OnSessionChangedListener {
+                    override fun onSessionsChanged(sessions: Map<String, MediaSessionTracker.MediaSessionInfo>) {
+                        handleSessionsChanged(sessions)
+                    }
+                })
+            }
+            Log.d(TAG, "Media session tracking started")
+        }
     }
 
     /**
-     * Stub function for stopping audio session tracking.
-     * This will be implemented in future iterations.
+     * Stop tracking audio sessions.
      */
     private fun stopTrackingSessions() {
-        // TODO: Implement stop tracking
-        Log.d(TAG, "Stop audio session tracking - stub")
+        mediaSessionTracker?.let {
+            it.stopTracking()
+            mediaSessionTracker = null
+            Log.d(TAG, "Media session tracking stopped")
+        }
+    }
+
+    /**
+     * Handle changes in media sessions.
+     * Logs active sessions and broadcasts changes to UI.
+     */
+    private fun handleSessionsChanged(sessions: Map<String, MediaSessionTracker.MediaSessionInfo>) {
+        Log.d(TAG, "=== Active Media Sessions ===")
+        if (sessions.isEmpty()) {
+            Log.d(TAG, "No active media sessions")
+        } else {
+            sessions.forEach { (packageName, info) ->
+                Log.d(TAG, "Package: $packageName")
+                Log.d(TAG, "  Session ID: ${info.sessionId}")
+                Log.d(TAG, "  Playback State: ${getPlaybackStateName(info.playbackState)}")
+                Log.d(TAG, "  Is Playing: ${info.isPlaying}")
+            }
+        }
+        Log.d(TAG, "=============================")
+
+        // Broadcast session change to UI
+        broadcastSessionChange(sessions)
+    }
+
+    /**
+     * Broadcast session changes to the UI.
+     */
+    private fun broadcastSessionChange(sessions: Map<String, MediaSessionTracker.MediaSessionInfo>) {
+        val intent = Intent(ACTION_SESSION_CHANGED).apply {
+            // Create a simple list of package names for the UI
+            val sessionData = sessions.map { (packageName, info) ->
+                "$packageName:${info.isPlaying}"
+            }.toTypedArray()
+            putExtra(EXTRA_SESSION_DATA, sessionData)
+        }
+        sendBroadcast(intent)
+    }
+
+    /**
+     * Convert playback state constant to readable name.
+     */
+    private fun getPlaybackStateName(state: Int): String {
+        return when (state) {
+            android.media.session.PlaybackState.STATE_NONE -> "NONE"
+            android.media.session.PlaybackState.STATE_STOPPED -> "STOPPED"
+            android.media.session.PlaybackState.STATE_PAUSED -> "PAUSED"
+            android.media.session.PlaybackState.STATE_PLAYING -> "PLAYING"
+            android.media.session.PlaybackState.STATE_FAST_FORWARDING -> "FAST_FORWARDING"
+            android.media.session.PlaybackState.STATE_REWINDING -> "REWINDING"
+            android.media.session.PlaybackState.STATE_BUFFERING -> "BUFFERING"
+            android.media.session.PlaybackState.STATE_ERROR -> "ERROR"
+            android.media.session.PlaybackState.STATE_CONNECTING -> "CONNECTING"
+            android.media.session.PlaybackState.STATE_SKIPPING_TO_PREVIOUS -> "SKIPPING_TO_PREVIOUS"
+            android.media.session.PlaybackState.STATE_SKIPPING_TO_NEXT -> "SKIPPING_TO_NEXT"
+            android.media.session.PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM -> "SKIPPING_TO_QUEUE_ITEM"
+            else -> "UNKNOWN($state)"
+        }
     }
 }
